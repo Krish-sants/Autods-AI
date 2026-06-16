@@ -1,0 +1,57 @@
+# AutoDS-AI Report — {{ filename }}
+
+_Generated {{ generated_at }}_
+
+## Executive Summary
+
+{{ executive_summary }}
+
+## Dataset Overview
+
+- Rows: {{ summary.n_rows }}
+- Columns: {{ summary.n_cols }}
+- Numerical features: {{ summary.numeric_columns | length }}
+- Categorical features: {{ summary.categorical_columns | length }}
+- Datetime features: {{ summary.datetime_columns | length }}
+- Missing values: {{ "Yes" if summary.has_missing else "No" }}
+- Duplicate rows found: {{ summary.duplicate_count }}
+
+## Data Cleaning
+
+{{ cleaning_report.shape_before }} -> {{ cleaning_report.shape_after }} (rows, columns)
+
+{% for action in cleaning_report.actions %}
+- {{ action.action }}: {{ action }}
+{% endfor %}
+
+## EDA Highlights
+
+{% for finding in eda_results.notable_findings %}
+- {{ finding }}
+{% endfor %}
+
+## Problem Type
+
+**{{ problem_type | capitalize }}** — target column: `{{ target_column or "N/A (unsupervised)" }}`
+
+## Model Leaderboard
+
+| Rank | Model | CV Score | Fit Time (s) |
+|---|---|---|---|
+{% for row in leaderboard %}| {{ row.rank }} | {{ row.display_name }} | {{ row.cv_score }} | {{ row.fit_time_s }} |
+{% endfor %}
+
+## Best Model: {{ best_model_name }}
+
+```json
+{{ metrics_json }}
+```
+
+## Top Features (SHAP Global Importance)
+
+{% for feat in shap_global[:10] %}
+- {{ feat.feature }}: {{ "%.4f"|format(feat.mean_abs_shap) }}
+{% endfor %}
+
+---
+*This report was generated automatically by AutoDS-AI.*
