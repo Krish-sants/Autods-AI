@@ -1,7 +1,43 @@
-backend/.venv/
-backend/__pycache__/
-backend/data/
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Secrets — never commit
 backend/.env
-frontend/node_modules/
-frontend/.next/
 frontend/.env.local
+.env
+.env.local
+.env.*.local
+
+# Data & ML artifacts (ephemeral, can be large)
+backend/data/
+data/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+
+# Vercel
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
