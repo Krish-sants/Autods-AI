@@ -59,7 +59,7 @@ def _infer_freq(series: pd.Series) -> str:
     diffs = series.sort_values().diff().dropna()
     median_days = diffs.dt.total_seconds().median() / 86400
     if median_days < 0.1:
-        return "H"
+        return "h"   # pandas 2.2+: "H" removed
     if median_days < 1.5:
         return "D"
     if median_days < 10:
@@ -68,7 +68,7 @@ def _infer_freq(series: pd.Series) -> str:
         return "MS"
     if median_days < 100:
         return "QS"
-    return "AS"
+    return "YS"      # pandas 2.2+: "AS" removed
 
 
 def run_forecast(
