@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import PasswordGate from "@/components/PasswordGate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,15 +29,17 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-white text-zinc-900">
         <Providers>
-          <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-3">
-            <Link href="/" className="font-semibold">
-              AutoDS-AI
-            </Link>
-            <Link href="/runs" className="text-sm text-zinc-500 hover:text-zinc-900">
-              Run History
-            </Link>
-          </header>
-          <main className="flex flex-1 flex-col">{children}</main>
+          <PasswordGate>
+            <header className="flex items-center justify-between border-b border-zinc-200 px-6 py-3">
+              <Link href="/" className="font-semibold">
+                AutoDS-AI
+              </Link>
+              <Link href="/runs" className="text-sm text-zinc-500 hover:text-zinc-900">
+                Run History
+              </Link>
+            </header>
+            <main className="flex flex-1 flex-col">{children}</main>
+          </PasswordGate>
         </Providers>
       </body>
     </html>

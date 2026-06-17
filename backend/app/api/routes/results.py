@@ -102,6 +102,15 @@ async def get_feature_importance(run_id: str, session: AsyncSession = Depends(ge
         order = np.argsort(values)[::-1][:25]
         importances = [{"feature": feature_names[i], "importance": float(values[i])} for i in order]
 
+    # Fallback: derive importances from SHAP global importance when no built-in attr
+    if not importances and artifact_exists(run_id, "shap_results.json"):
+        shap_data = load_json(run_id, "shap_results.json") or {}
+        if shap_data.get("available") and shap_data.get("global_importance"):
+            importances = [
+                {"feature": entry["feature"], "importance": entry["mean_abs_shap"]}
+                for entry in shap_data["global_importance"]
+            ]
+
     figure = None
     if importances:
         fig = px.bar(

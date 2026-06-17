@@ -8,7 +8,7 @@ export default function ReportViewer({ report }: { report: ReportResponse }) {
           report.executive_summary_source === "llm" ? "bg-purple-100 text-purple-700" : "bg-zinc-100 text-zinc-600"
         }`}
       >
-        {report.executive_summary_source === "llm" ? "AI-written summary" : "Template summary (no LLM key configured)"}
+        {report.executive_summary_source === "llm" ? "AI-written summary" : "Template summary (LLM unavailable for this run)"}
       </span>
       <div
         className="prose prose-zinc max-w-none rounded-xl border border-zinc-200 p-6 [&_table]:w-full [&_th]:text-left [&_th]:p-2 [&_td]:p-2 [&_table]:border [&_th]:border [&_td]:border"

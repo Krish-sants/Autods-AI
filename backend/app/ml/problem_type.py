@@ -6,15 +6,26 @@ CLUSTERING = "clustering"
 FORECASTING = "forecasting"
 
 
+def _looks_like_datetime(series: pd.Series) -> bool:
+    """True if series is datetime-typed or if ≥90% of non-null values parse as dates."""
+    if pd.api.types.is_datetime64_any_dtype(series):
+        return True
+    if not pd.api.types.is_object_dtype(series) and not pd.api.types.is_string_dtype(series):
+        return False
+    sample = series.dropna().head(30)
+    if len(sample) < 2:
+        return False
+    try:
+        return pd.to_datetime(sample, errors="coerce", format="mixed").notna().mean() >= 0.9
+    except Exception:
+        return False
+
+
 def _has_usable_datetime(df: pd.DataFrame, exclude_col: str) -> bool:
-    """True if df has a datetime index or at least one datetime column (other than target)."""
+    """True if df has a datetime index or at least one datetime-like column (other than target)."""
     if pd.api.types.is_datetime64_any_dtype(df.index):
         return True
-    return any(
-        pd.api.types.is_datetime64_any_dtype(df[c])
-        for c in df.columns
-        if c != exclude_col
-    )
+    return any(_looks_like_datetime(df[c]) for c in df.columns if c != exclude_col)
 
 
 def infer_problem_type(df: pd.DataFrame, target_column: str | None) -> str:

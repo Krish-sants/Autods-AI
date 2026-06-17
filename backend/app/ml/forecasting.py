@@ -25,14 +25,30 @@ class ForecastOutput:
 
 
 def _find_datetime_col(df: pd.DataFrame) -> str | None:
-    """Return the name of the most suitable datetime column, or None."""
-    # Prefer datetime-dtype columns
+    """Return the name of the most suitable datetime column, or None.
+
+    Checks dtype-typed datetime cols first, then falls back to string cols
+    where ≥90% of non-null values parse as dates.
+    """
+    # Prefer already-typed datetime columns
     for col in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df[col]):
             return col
     # Fallback: datetime index
     if pd.api.types.is_datetime64_any_dtype(df.index):
         return df.index.name or "__index__"
+    # Last resort: string columns that look like dates
+    for col in df.columns:
+        if not (pd.api.types.is_object_dtype(df[col]) or pd.api.types.is_string_dtype(df[col])):
+            continue
+        sample = df[col].dropna().head(30)
+        if len(sample) < 2:
+            continue
+        try:
+            if pd.to_datetime(sample, errors="coerce", format="mixed").notna().mean() >= 0.9:
+                return col
+        except Exception:
+            continue
     return None
 
 

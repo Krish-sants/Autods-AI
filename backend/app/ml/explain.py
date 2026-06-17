@@ -5,8 +5,10 @@ import pandas as pd
 import shap
 from sklearn.pipeline import Pipeline
 
-TREE_MODEL_IDS = {"random_forest", "extra_trees", "xgboost", "lightgbm"}
+TREE_MODEL_IDS = {"random_forest", "extra_trees", "xgboost", "lightgbm", "gradient_boosting"}
 LINEAR_MODEL_IDS = {"logistic_regression", "ridge"}
+# Models with no native feature importances — use KernelExplainer on predict_proba/predict
+KERNEL_MODEL_IDS = {"svm", "knn", "svr"}
 
 
 def _transformed_feature_names(pipeline: Pipeline) -> list[str]:
@@ -35,14 +37,26 @@ def compute_shap(
     try:
         if model_id in TREE_MODEL_IDS:
             explainer = shap.TreeExplainer(model)
+            shap_values = explainer.shap_values(transformed)
         elif model_id in LINEAR_MODEL_IDS:
             explainer = shap.LinearExplainer(model, transformed)
+            shap_values = explainer.shap_values(transformed)
+        elif model_id in KERNEL_MODEL_IDS:
+            # KernelExplainer works on any callable; use k-means background for speed
+            n_bg = min(10, transformed.shape[0])
+            background = shap.kmeans(transformed, n_bg)
+            predict_fn = model.predict_proba if hasattr(model, "predict_proba") else model.predict
+            explainer = shap.KernelExplainer(predict_fn, background)
+            # Limit to small sample for KernelExplainer (it's O(n*background))
+            kernel_sample = transformed[:min(50, transformed.shape[0])]
+            shap_values = explainer.shap_values(kernel_sample, nsamples=100, silent=True)
+            transformed = kernel_sample  # align local_examples to the subset used
         else:
             explainer = shap.Explainer(model, transformed)
+            shap_values = explainer.shap_values(transformed)
 
-        shap_values = explainer.shap_values(transformed)
         if isinstance(shap_values, list):
-            # multi-class classification: pick the positive/last class for a single global view
+            # multi-class / KernelExplainer with predict_proba returns one array per class
             shap_values = shap_values[-1]
         shap_values = np.asarray(shap_values)
         if shap_values.ndim == 3:
@@ -57,7 +71,7 @@ def compute_shap(
 
         n_local = min(5, transformed.shape[0])
         local_examples = []
-        base_value = explainer.expected_value
+        base_value = getattr(explainer, "expected_value", None)
         if isinstance(base_value, (list, np.ndarray)):
             base_value = float(np.asarray(base_value).flatten()[-1])
         for row_idx in range(n_local):
