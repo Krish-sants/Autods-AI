@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: autods-ai-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: CORS_ORIGINS
+        value: '["https://frontend-blush-nine-81.vercel.app"]'
+      - key: DATA_DIR
+        value: /app/data
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: APP_ACCESS_PASSWORD
+        value: ""
