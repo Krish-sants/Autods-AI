@@ -1,5 +1,6 @@
 import logging
 
+from app.agents.base import raise_if_cancelled
 from app.graph.state import PipelineState
 from app.ml.features import engineer_features, save_feature_map
 
@@ -7,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 async def feature_engineering_agent(state: PipelineState) -> PipelineState:
+    await raise_if_cancelled(state["run_id"])
     try:
         df = state["cleaned_df"]
         target_column = state.get("target_column")

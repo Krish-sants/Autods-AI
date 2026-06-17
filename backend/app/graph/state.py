@@ -20,9 +20,12 @@ JSON_STATE_FIELDS = [
     "best_model_id",
     "best_model_path",
     "metrics",
+    "all_model_metrics",
     "shap_results",
+    "forecast_results",
     "report_paths",
     "narrative_llm_used",
+    "executive_summary_source",
     "current_step",
     "steps_completed",
     "errors",
@@ -52,10 +55,13 @@ class PipelineState(TypedDict, total=False):
     best_model_id: str | None
     best_model_path: str | None
     metrics: dict[str, Any]
+    all_model_metrics: dict[str, dict[str, Any]]
     shap_results: dict[str, Any]
+    forecast_results: dict[str, Any]
     report_paths: dict[str, str]
 
     narrative_llm_used: bool
+    executive_summary_source: str
     current_step: str
     steps_completed: list[str]
     errors: list[str]
@@ -64,6 +70,11 @@ class PipelineState(TypedDict, total=False):
     # NOTE: LangGraph only forwards keys declared in this TypedDict between node
     # hops — any field an agent sets that isn't listed here is silently dropped
     # before the next node runs. Every key any agent reads/writes must be here.
+    # Fields in this block are intentionally excluded from JSON_STATE_FIELDS above
+    # (they're not JSON-serializable) — don't add a field here AND expect it to
+    # survive into state.json; if it needs to be read back via the API, it
+    # belongs in JSON_STATE_FIELDS instead (see executive_summary_source above,
+    # which was wrongly placed in this block until that bug was caught).
     df: pd.DataFrame
     cleaned_df: pd.DataFrame
     X: Any
@@ -74,7 +85,7 @@ class PipelineState(TypedDict, total=False):
     best_pipeline: Any
     X_test: Any
     y_test: Any
-    executive_summary_source: str
+    forecast_model: Any
 
 
 def to_json_safe(state: PipelineState) -> dict[str, Any]:

@@ -1,22 +1,35 @@
 import logging
 
 import pandas as pd
-from langgraph.graph import END, StateGraph
+from langgraph.graph import END, START, StateGraph
 
 from app.agents.cleaning_agent import cleaning_agent
 from app.agents.eda_agent import eda_agent
 from app.agents.evaluation_agent import evaluation_agent
 from app.agents.explainability_agent import explainability_agent
 from app.agents.feature_engineering_agent import feature_engineering_agent
+from app.agents.forecasting_agent import forecasting_agent
 from app.agents.report_agent import report_agent
 from app.agents.target_agent import target_agent
 from app.agents.training_agent import training_agent
 from app.agents.understanding_agent import understanding_agent
 from app.graph.state import PipelineState, new_state, to_json_safe
-from app.ml.problem_type import infer_problem_type
+from app.ml.problem_type import FORECASTING, infer_problem_type
 from app.storage.run_store import artifact_path, load_json, save_json
 
 logger = logging.getLogger(__name__)
+
+
+def _route_post_target(state: PipelineState) -> str:
+    """After entering post-target graph, route to forecasting or supervised pipeline."""
+    if state.get("problem_type") == FORECASTING:
+        return "forecasting"
+    return "feature_engineering"
+
+
+def _route_after_forecasting(state: PipelineState) -> str:
+    """After forecasting, skip SHAP/FE (not applicable) and go straight to report."""
+    return "report"
 
 
 def build_pre_target_graph():
@@ -40,13 +53,25 @@ def build_post_target_graph():
     graph.add_node("training", training_agent)
     graph.add_node("evaluation", evaluation_agent)
     graph.add_node("explainability", explainability_agent)
+    graph.add_node("forecasting", forecasting_agent)
     graph.add_node("report", report_agent)
 
-    graph.set_entry_point("feature_engineering")
+    # Conditional entry: forecasting datasets skip the supervised pipeline
+    graph.add_conditional_edges(
+        START,
+        _route_post_target,
+        {"forecasting": "forecasting", "feature_engineering": "feature_engineering"},
+    )
+
+    # Supervised path
     graph.add_edge("feature_engineering", "training")
     graph.add_edge("training", "evaluation")
     graph.add_edge("evaluation", "explainability")
     graph.add_edge("explainability", "report")
+
+    # Forecasting path — skip FE/training/evaluation/SHAP
+    graph.add_edge("forecasting", "report")
+
     graph.add_edge("report", END)
     return graph.compile()
 
@@ -70,11 +95,7 @@ def get_post_target_graph():
 
 
 async def run_pre_target(run_id: str, dataset_path: str, dataset_format: str) -> PipelineState:
-    """Graph A: understanding -> eda -> cleaning -> target_detection.
-
-    Persists cleaned.parquet + state.json so Graph B can resume after a human
-    confirms the target column, possibly much later / in a different process.
-    """
+    """Graph A: understanding -> eda -> cleaning -> target_detection."""
     state = new_state(run_id, dataset_path, dataset_format)
     graph = get_pre_target_graph()
     final_state = await graph.ainvoke(state)
@@ -88,11 +109,7 @@ async def run_pre_target(run_id: str, dataset_path: str, dataset_format: str) ->
 
 
 async def run_post_target(run_id: str, target_column: str | None) -> PipelineState:
-    """Graph B: feature_engineering -> training -> evaluation -> explainability -> report.
-
-    Reloads persisted state from Graph A rather than relying on an in-memory handle,
-    since the human-in-the-loop confirmation may happen long after Graph A finished.
-    """
+    """Graph B: routes to forecasting or supervised pipeline depending on problem_type."""
     persisted = load_json(run_id, "state.json") or {}
     cleaned_df = pd.read_parquet(artifact_path(run_id, "cleaned.parquet"))
 

@@ -3,8 +3,8 @@ from pathlib import Path
 
 from app.agents.base import safe_llm_call
 from app.graph.state import PipelineState
-from app.ml.report import build_template_executive_summary, render_report
-from app.storage.run_store import save_text
+from app.ml.report import build_template_executive_summary, render_docx, render_pdf, render_report
+from app.storage.run_store import save_bytes, save_text
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,25 @@ async def report_agent(state: PipelineState) -> PipelineState:
         md_path = save_text(state["run_id"], "report.md", markdown_text)
         html_path = save_text(state["run_id"], "report.html", html_text)
 
-        state["report_paths"] = {"md": str(md_path), "html": str(html_path)}
+        report_paths: dict = {"md": str(md_path), "html": str(html_path)}
+
+        # PDF
+        try:
+            pdf_bytes = render_pdf(html_text)
+            pdf_path = save_bytes(state["run_id"], "report.pdf", pdf_bytes)
+            report_paths["pdf"] = str(pdf_path)
+        except Exception as pdf_exc:
+            logger.warning("PDF export failed (non-fatal): %s", pdf_exc)
+
+        # DOCX
+        try:
+            docx_bytes = render_docx(markdown_text)
+            docx_path = save_bytes(state["run_id"], "report.docx", docx_bytes)
+            report_paths["docx"] = str(docx_path)
+        except Exception as docx_exc:
+            logger.warning("DOCX export failed (non-fatal): %s", docx_exc)
+
+        state["report_paths"] = report_paths
         state["narrative_llm_used"] = state.get("narrative_llm_used", False) or used_llm
         state["executive_summary_source"] = "llm" if used_llm else "template"
 

@@ -158,6 +158,34 @@ export interface ReportResponse {
   executive_summary_source: "llm" | "template";
 }
 
+export interface ForecastPoint {
+  ds: string;
+  yhat: number;
+  yhat_lower: number;
+  yhat_upper: number;
+}
+
+export interface ForecastHistoryPoint {
+  ds: string;
+  y: number;
+}
+
+export interface ForecastMetrics {
+  mae: number;
+  rmse: number;
+  mape: number;
+}
+
+export interface ForecastResults {
+  target_col: string;
+  date_col: string;
+  freq: string;
+  metrics: ForecastMetrics;
+  future_forecast: ForecastPoint[];
+  history: ForecastHistoryPoint[];
+  plotly_figure: PlotlyFigureJSON | null;
+}
+
 export interface NotReadyResponse {
   detail: string;
   status: string;

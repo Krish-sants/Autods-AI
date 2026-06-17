@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     APP_NAME: str = "AutoDS-AI"
     ENV: str = "development"
 
+    # If set, all /api/v1/* routes require a matching X-App-Password header.
+    # Left empty by default so local dev needs no setup; deployments should set it.
+    APP_ACCESS_PASSWORD: str = ""
+
     # LLM
     LLM_PROVIDER: str = "gemini"
     GOOGLE_API_KEY: str = ""
@@ -34,8 +38,16 @@ class Settings(BaseSettings):
     SCORING_METRIC_CLASSIFICATION: str = "f1_weighted"
     SCORING_METRIC_REGRESSION: str = "r2"
     RANDOM_STATE: int = 42
-    TUNING_N_ITER: int = 8
+    TUNING_N_ITER: int = 8          # kept for compat; Optuna uses OPTUNA_N_TRIALS
+    OPTUNA_N_TRIALS: int = 30
+    OPTUNA_TIMEOUT_S: int = 180     # max seconds per model study
     SHAP_SAMPLE_SIZE: int = 200
+
+    # Forecasting
+    FORECAST_PERIODS: int = 30      # number of future periods Prophet predicts
+
+    # Artifact retention
+    ARTIFACT_RETENTION_DAYS: int = 30
 
     @property
     def cors_origins_list(self) -> list[str]:

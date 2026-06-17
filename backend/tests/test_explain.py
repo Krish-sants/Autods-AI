@@ -9,7 +9,7 @@ def test_compute_shap_for_random_forest(synthetic_classification_df):
     df = synthetic_classification_df.drop(columns=["customer_id"])
     X, y, preprocessor, _ = engineer_features(df, target_column="churn", datetime_columns=["signup_date"])
 
-    output = train_and_tune_all(X, y, "classification", preprocessor, cv_folds=2, n_iter=2, random_state=42)
+    output = train_and_tune_all(X, y, "classification", preprocessor, cv_folds=2, n_trials=2, timeout_s=30, random_state=42)
     rf_result = next(r for r in output.results if r.model_id == "random_forest")
     assert rf_result.error is None
 
@@ -30,7 +30,7 @@ def test_compute_shap_for_logistic_regression(synthetic_classification_df):
     df = synthetic_classification_df.drop(columns=["customer_id"])
     X, y, preprocessor, _ = engineer_features(df, target_column="churn", datetime_columns=["signup_date"])
 
-    output = train_and_tune_all(X, y, "classification", preprocessor, cv_folds=2, n_iter=2, random_state=42)
+    output = train_and_tune_all(X, y, "classification", preprocessor, cv_folds=2, n_trials=2, timeout_s=30, random_state=42)
     lr_result = next(r for r in output.results if r.model_id == "logistic_regression")
     assert lr_result.error is None
 

@@ -58,11 +58,19 @@ async def get_leaderboard(run_id: str, session: AsyncSession = Depends(get_sessi
 async def get_metrics(run_id: str, model_id: str, session: AsyncSession = Depends(get_session)):
     run = await _get_run_or_404(session, run_id)
     state = load_json(run_id, "state.json")
-    if state is None or "metrics" not in state:
+    if state is None or not state.get("leaderboard"):
         return _not_ready(run.status)
-    if model_id != state.get("best_model_id"):
-        raise HTTPException(status_code=404, detail="Only the best model's metrics are available in Phase 1")
-    return state["metrics"]
+
+    # Use all_model_metrics (Phase 2) if available
+    all_metrics = state.get("all_model_metrics") or {}
+    if all_metrics and model_id in all_metrics:
+        return all_metrics[model_id]
+
+    # Fallback: best-model metrics from Phase 1 runs
+    if "metrics" in state and model_id == state.get("best_model_id"):
+        return state["metrics"]
+
+    raise HTTPException(status_code=404, detail=f"Metrics for model '{model_id}' not available")
 
 
 @router.get("/runs/{run_id}/feature-importance")
@@ -115,6 +123,15 @@ async def get_shap(run_id: str, session: AsyncSession = Depends(get_session)):
     if state is None or "shap_results" not in state:
         return _not_ready(run.status)
     return state["shap_results"]
+
+
+@router.get("/runs/{run_id}/forecast")
+async def get_forecast(run_id: str, session: AsyncSession = Depends(get_session)):
+    run = await _get_run_or_404(session, run_id)
+    state = load_json(run_id, "state.json")
+    if state is None or "forecast_results" not in state:
+        return _not_ready(run.status)
+    return state["forecast_results"]
 
 
 @router.get("/runs/{run_id}/report")

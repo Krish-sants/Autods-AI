@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from functools import lru_cache
 from typing import Any
@@ -49,3 +50,23 @@ async def safe_llm_call(prompt: str, fallback: str) -> tuple[str, bool]:
     except Exception:
         logger.exception("LLM call failed — falling back to template text.")
         return fallback, False
+
+
+async def check_run_cancelled(run_id: str) -> bool:
+    """Return True if the run has been cancelled via the API."""
+    try:
+        from app.database.connection import async_session
+        from app.database.models import Run
+
+        async with async_session() as session:
+            run = await session.get(Run, run_id)
+            return run is not None and bool(getattr(run, "cancel_requested", False))
+    except Exception:
+        return False
+
+
+async def raise_if_cancelled(run_id: str) -> None:
+    """Raise asyncio.CancelledError if the run has been cancelled."""
+    if await check_run_cancelled(run_id):
+        logger.info("Run %s was cancelled — stopping agent.", run_id)
+        raise asyncio.CancelledError(f"Run {run_id} cancelled by user")

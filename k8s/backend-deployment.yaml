@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autods-backend
+  namespace: autods-ai
+  labels:
+    app: autods-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: autods-backend
+  template:
+    metadata:
+      labels:
+        app: autods-backend
+    spec:
+      containers:
+        - name: backend
+          image: autods-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: autods-config
+            - secretRef:
+                name: autods-secrets
+          env:
+            - name: DATABASE_URL
+              value: "sqlite+aiosqlite:///app/data/autods.db"
+            - name: DATA_DIR
+              value: "/app/data"
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "2"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: autods-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: autods-backend
+  namespace: autods-ai
+spec:
+  selector:
+    app: autods-backend
+  ports:
+    - port: 8000
+      targetPort: 8000

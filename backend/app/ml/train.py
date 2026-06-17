@@ -1,16 +1,15 @@
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from math import prod
 from typing import Any
 
 import numpy as np
+import optuna
 import pandas as pd
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import (
     KFold,
-    RandomizedSearchCV,
     StratifiedKFold,
     cross_val_score,
     train_test_split,
@@ -18,6 +17,9 @@ from sklearn.model_selection import (
 from sklearn.pipeline import Pipeline
 
 from app.ml.registry import ModelSpec, get_registry
+
+# Silence Optuna's per-trial logging; pipeline-level logging is sufficient
+optuna.logging.set_verbosity(optuna.logging.WARNING)
 
 
 @dataclass
@@ -42,12 +44,6 @@ class TrainingOutput:
     results: list[ModelResult]
 
 
-def _param_space_size(param_distributions: dict[str, list[Any]]) -> int:
-    if not param_distributions:
-        return 1
-    return prod(len(v) for v in param_distributions.values())
-
-
 def _safe_cv(problem_type: str, y: pd.Series, cv_folds: int, random_state: int):
     if problem_type == "classification":
         min_class_count = int(y.value_counts().min())
@@ -57,6 +53,14 @@ def _safe_cv(problem_type: str, y: pd.Series, cv_folds: int, random_state: int):
     return KFold(n_splits=folds, shuffle=True, random_state=random_state)
 
 
+def _build_pipeline(spec: ModelSpec, preprocessor: ColumnTransformer, params: dict, random_state: int) -> Pipeline:
+    kwargs = dict(spec.fixed_params)
+    kwargs.update(params)
+    if not spec.no_random_state:
+        kwargs["random_state"] = random_state
+    return Pipeline([("preprocess", clone(preprocessor)), ("model", spec.factory(**kwargs))])
+
+
 def _fit_one(
     spec: ModelSpec,
     preprocessor: ColumnTransformer,
@@ -64,36 +68,39 @@ def _fit_one(
     y_train: pd.Series,
     cv: Any,
     scoring: str,
-    n_iter: int,
+    n_trials: int,
+    timeout_s: int,
     random_state: int,
 ) -> ModelResult:
     start = time.perf_counter()
-    pipeline = Pipeline(steps=[("preprocess", clone(preprocessor)), ("model", spec.build(random_state))])
     try:
-        if spec.param_distributions:
-            search = RandomizedSearchCV(
-                pipeline,
-                param_distributions=spec.param_distributions,
-                n_iter=min(n_iter, _param_space_size(spec.param_distributions)),
-                cv=cv,
-                scoring=scoring,
-                random_state=random_state,
-                n_jobs=1,
-                error_score="raise",
+        if spec.optuna_space is not None:
+            def objective(trial: optuna.Trial) -> float:
+                params = spec.optuna_space(trial)
+                pipeline = _build_pipeline(spec, preprocessor, params, random_state)
+                scores = cross_val_score(pipeline, X_train, y_train, cv=cv, scoring=scoring, n_jobs=1)
+                return float(np.mean(scores))
+
+            study = optuna.create_study(
+                direction="maximize",
+                sampler=optuna.samplers.TPESampler(seed=random_state),
             )
-            search.fit(X_train, y_train)
-            best_estimator = search.best_estimator_
-            cv_score = float(search.best_score_)
-            best_params = {k: v for k, v in search.best_params_.items()}
+            study.optimize(objective, n_trials=n_trials, timeout=timeout_s, show_progress_bar=False)
+            best_params = study.best_params
+            cv_score = study.best_value
         else:
-            pipeline.fit(X_train, y_train)
-            scores = cross_val_score(pipeline, X_train, y_train, cv=cv, scoring=scoring, n_jobs=1)
-            best_estimator = pipeline
-            cv_score = float(np.mean(scores))
+            # No search space defined — fit with fixed params only
             best_params = {}
+            pipeline = _build_pipeline(spec, preprocessor, {}, random_state)
+            scores = cross_val_score(pipeline, X_train, y_train, cv=cv, scoring=scoring, n_jobs=1)
+            cv_score = float(np.mean(scores))
+
+        # Refit best configuration on full training set
+        best_pipeline = _build_pipeline(spec, preprocessor, best_params, random_state)
+        best_pipeline.fit(X_train, y_train)
         fit_time = time.perf_counter() - start
-        return ModelResult(spec.model_id, spec.display_name, best_estimator, cv_score, fit_time, best_params)
-    except Exception as exc:  # noqa: BLE001 - surfaced via ModelResult.error, not raised
+        return ModelResult(spec.model_id, spec.display_name, best_pipeline, cv_score, fit_time, best_params)
+    except Exception as exc:  # noqa: BLE001
         fit_time = time.perf_counter() - start
         return ModelResult(spec.model_id, spec.display_name, None, float("-inf"), fit_time, {}, error=str(exc))
 
@@ -105,7 +112,8 @@ def train_and_tune_all(
     preprocessor: ColumnTransformer,
     *,
     cv_folds: int = 5,
-    n_iter: int = 8,
+    n_trials: int = 30,
+    timeout_s: int = 180,
     random_state: int = 42,
     scoring: str | None = None,
     test_size: float = 0.2,
@@ -123,7 +131,9 @@ def train_and_tune_all(
     results: list[ModelResult] = []
     with ThreadPoolExecutor(max_workers=len(specs)) as executor:
         futures = {
-            executor.submit(_fit_one, spec, preprocessor, X_train, y_train, cv, scoring, n_iter, random_state): spec
+            executor.submit(
+                _fit_one, spec, preprocessor, X_train, y_train, cv, scoring, n_trials, timeout_s, random_state
+            ): spec
             for spec in specs
         }
         for future in as_completed(futures):

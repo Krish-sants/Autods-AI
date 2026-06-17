@@ -1,31 +1,59 @@
 services:
   backend:
     build: ./backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/data:/app/data
+      - autods_data:/app/data
     env_file:
       - ./backend/.env
+    environment:
+      - CORS_ORIGINS=["http://localhost:3000"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - autods
 
   frontend:
     build:
       context: ./frontend
+      args:
+        # Baked into client-side JS at build time — must be the URL the browser uses
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+      - NODE_ENV=production
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - autods
+
+  predictor:
+    build: ./predictor
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    volumes:
+      - autods_data:/app/data:ro
+    environment:
+      - DATA_DIR=/app/data
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - autods
+
+volumes:
+  autods_data:
+    driver: local
 
 networks:
   autods:

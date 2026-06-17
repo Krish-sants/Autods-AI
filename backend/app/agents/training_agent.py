@@ -1,5 +1,6 @@
 import logging
 
+from app.agents.base import raise_if_cancelled
 from app.config import get_settings
 from app.graph.state import PipelineState
 from app.ml.clustering import run_kmeans_scan
@@ -9,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 async def training_agent(state: PipelineState) -> PipelineState:
+    await raise_if_cancelled(state["run_id"])
     settings = get_settings()
     problem_type = state["problem_type"]
 
@@ -28,7 +30,8 @@ async def training_agent(state: PipelineState) -> PipelineState:
                 problem_type,
                 state["preprocessor"],
                 cv_folds=settings.CV_FOLDS,
-                n_iter=settings.TUNING_N_ITER,
+                n_trials=settings.OPTUNA_N_TRIALS,
+                timeout_s=settings.OPTUNA_TIMEOUT_S,
                 random_state=settings.RANDOM_STATE,
                 scoring=scoring,
             )
@@ -39,5 +42,5 @@ async def training_agent(state: PipelineState) -> PipelineState:
     except Exception as exc:
         logger.exception("training_agent failed")
         state.setdefault("errors", []).append(f"training_agent: {exc}")
-        raise  # fatal: nothing downstream (evaluation/explain/report) is meaningful without trained models
+        raise
     return state

@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autods-frontend
+  namespace: autods-ai
+  labels:
+    app: autods-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: autods-frontend
+  template:
+    metadata:
+      labels:
+        app: autods-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: autods-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: autods-config
+                  key: NEXT_PUBLIC_API_BASE_URL
+            - name: NODE_ENV
+              value: production
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: autods-frontend
+  namespace: autods-ai
+spec:
+  selector:
+    app: autods-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000

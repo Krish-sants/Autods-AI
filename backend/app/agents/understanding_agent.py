@@ -1,6 +1,6 @@
 import logging
 
-from app.agents.base import safe_llm_call
+from app.agents.base import raise_if_cancelled, safe_llm_call
 from app.config import get_settings
 from app.graph.state import PipelineState
 from app.ml.loaders import load_dataset
@@ -15,6 +15,7 @@ _FALLBACK_TEMPLATE = (
 
 
 async def understanding_agent(state: PipelineState) -> PipelineState:
+    await raise_if_cancelled(state["run_id"])
     settings = get_settings()
     try:
         df = load_dataset(state["dataset_path"], state["dataset_format"], max_rows=settings.MAX_ROWS)

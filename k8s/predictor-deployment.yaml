@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autods-predictor
+  namespace: autods-ai
+  labels:
+    app: autods-predictor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: autods-predictor
+  template:
+    metadata:
+      labels:
+        app: autods-predictor
+    spec:
+      containers:
+        - name: predictor
+          image: autods-predictor:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8001
+          env:
+            - name: DATA_DIR
+              value: "/app/data"
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: autods-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: autods-predictor
+  namespace: autods-ai
+spec:
+  selector:
+    app: autods-predictor
+  ports:
+    - port: 8001
+      targetPort: 8001

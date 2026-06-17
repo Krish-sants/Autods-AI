@@ -13,7 +13,9 @@ _TEST_DATA_DIR.mkdir(parents=True)
 os.environ["DATA_DIR"] = str(_TEST_DATA_DIR)
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_TEST_DATA_DIR / 'test.db').as_posix()}"
 os.environ.setdefault("GOOGLE_API_KEY", "")
-os.environ.setdefault("TUNING_N_ITER", "3")  # keep CV/tuning fast in tests
+os.environ.setdefault("TUNING_N_ITER", "3")      # legacy compat
+os.environ.setdefault("OPTUNA_N_TRIALS", "3")    # keep HPO fast in tests
+os.environ.setdefault("OPTUNA_TIMEOUT_S", "30")  # short timeout per model in tests
 os.environ.setdefault("CV_FOLDS", "2")
 
 import numpy as np

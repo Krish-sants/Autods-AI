@@ -15,6 +15,13 @@ _ARTIFACT_FILENAMES = {
     "pipeline": "pipeline.pkl",
     "report-html": "report.html",
     "report-md": "report.md",
+    "report-pdf": "report.pdf",
+    "report-docx": "report.docx",
+}
+
+_MEDIA_TYPES = {
+    "report-pdf": "application/pdf",
+    "report-docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 }
 
 
@@ -27,14 +34,19 @@ async def download_artifact(run_id: str, artifact: str, session: AsyncSession = 
     if artifact == "raw-dataset":
         path = run.raw_path
         filename = run.filename
+        media_type = None
     else:
         name = _ARTIFACT_FILENAMES.get(artifact)
         if name is None:
             raise HTTPException(status_code=404, detail=f"Unknown artifact '{artifact}'")
         path = str(artifact_path(run_id, name))
         filename = name
+        media_type = _MEDIA_TYPES.get(artifact)
 
     if not Path(path).exists():
         raise HTTPException(status_code=404, detail=f"Artifact '{artifact}' not yet available for this run")
 
-    return FileResponse(path, filename=filename)
+    kwargs = {"filename": filename}
+    if media_type:
+        kwargs["media_type"] = media_type
+    return FileResponse(path, **kwargs)

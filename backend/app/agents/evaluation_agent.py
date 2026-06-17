@@ -43,6 +43,7 @@ async def evaluation_agent(state: PipelineState) -> PipelineState:
 
             state["best_pipeline"] = result.estimator
             metrics["cluster_profile"] = result.cluster_profile
+            all_model_metrics = {"kmeans": metrics}
         else:
             training_output = state["training_output"]
             leaderboard, best_model_id = rank_models(training_output.results)
@@ -53,19 +54,30 @@ async def evaluation_agent(state: PipelineState) -> PipelineState:
             best_result = next(r for r in training_output.results if r.model_id == best_model_id)
             best_pipeline = best_result.estimator
 
-            if problem_type == "classification":
-                metrics = compute_classification_metrics(
-                    best_pipeline, training_output.X_test, training_output.y_test
-                )
-            else:
-                metrics = compute_regression_metrics(best_pipeline, training_output.X_test, training_output.y_test)
-
+            # Save best model as model.pkl (canonical artifact for downloads/SHAP)
             model_path = artifact_path(run_id, "model.pkl")
             joblib.dump(best_pipeline, model_path)
-
             state["best_pipeline"] = best_pipeline
             state["X_test"] = training_output.X_test
             state["y_test"] = training_output.y_test
+
+            # Save every successful model and compute its metrics
+            all_model_metrics: dict = {}
+            for result in training_output.results:
+                if result.error or result.estimator is None:
+                    continue
+                joblib.dump(result.estimator, artifact_path(run_id, f"{result.model_id}_model.pkl"))
+                if problem_type == "classification":
+                    m = compute_classification_metrics(
+                        result.estimator, training_output.X_test, training_output.y_test
+                    )
+                else:
+                    m = compute_regression_metrics(
+                        result.estimator, training_output.X_test, training_output.y_test
+                    )
+                all_model_metrics[result.model_id] = m
+
+            metrics = all_model_metrics.get(best_model_id, {})
 
         feature_map = save_feature_map(state["preprocessor"], state["feature_engineering_report"])
         feature_map_path = save_json(run_id, "feature_map.json", feature_map)
@@ -75,6 +87,7 @@ async def evaluation_agent(state: PipelineState) -> PipelineState:
         state["best_model_path"] = str(model_path)
         state["feature_map_path"] = str(feature_map_path)
         state["metrics"] = metrics
+        state["all_model_metrics"] = all_model_metrics
 
         state["current_step"] = "evaluation"
         state.setdefault("steps_completed", []).append("evaluation")

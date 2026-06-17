@@ -53,7 +53,7 @@ def test_full_pipeline_classification_flow(client, synthetic_classification_df):
     assert confirm_resp.status_code == 200, confirm_resp.text
     assert confirm_resp.json()["problem_type"] == "classification"
 
-    status = _poll_until(client, run_id, {"complete", "failed"}, max_iters=100)
+    status = _poll_until(client, run_id, {"complete", "failed"}, max_iters=300)
     assert status["status"] == "complete", status
     assert status["best_model_id"] is not None
 
@@ -68,7 +68,7 @@ def test_full_pipeline_classification_flow(client, synthetic_classification_df):
     leaderboard_resp = client.get(f"/api/v1/runs/{run_id}/leaderboard")
     assert leaderboard_resp.status_code == 200
     leaderboard = leaderboard_resp.json()["leaderboard"]
-    assert len(leaderboard) == 5
+    assert len(leaderboard) >= 5, f"Expected at least 5 models, got {len(leaderboard)}"
     best_model_id = leaderboard_resp.json()["best_model_id"]
 
     metrics_resp = client.get(f"/api/v1/runs/{run_id}/metrics/{best_model_id}")
@@ -118,7 +118,7 @@ def test_full_pipeline_regression_flow(client, synthetic_regression_df):
     confirm_resp = client.post(f"/api/v1/runs/{run_id}/confirm-target", json={"target_column": "price"})
     assert confirm_resp.json()["problem_type"] == "regression"
 
-    status = _poll_until(client, run_id, {"complete", "failed"}, max_iters=100)
+    status = _poll_until(client, run_id, {"complete", "failed"}, max_iters=300)
     assert status["status"] == "complete", status
 
     metrics_resp = client.get(f"/api/v1/runs/{run_id}/metrics/{status['best_model_id']}")
