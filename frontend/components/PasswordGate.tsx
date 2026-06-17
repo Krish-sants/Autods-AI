@@ -14,8 +14,24 @@ export default function PasswordGate({ children }: { children: React.ReactNode }
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    setUnlocked(!!getStoredPassword());
-    setChecked(true);
+    async function init() {
+      const stored = getStoredPassword();
+      if (stored) {
+        setUnlocked(true);
+        setChecked(true);
+        return;
+      }
+      // No stored password — probe the backend to see if auth is required.
+      // If the backend has APP_ACCESS_PASSWORD unset, it returns 200 and we skip the gate.
+      try {
+        await verifyPassword("");
+        setUnlocked(true);
+      } catch {
+        // backend requires a password — show the gate
+      }
+      setChecked(true);
+    }
+    init();
 
     function handleUnauthorized() {
       setUnlocked(false);
