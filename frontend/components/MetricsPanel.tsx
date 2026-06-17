@@ -22,6 +22,7 @@ export default function MetricsPanel({ metrics }: { metrics: Metrics }) {
 
         <div>
           <p className="text-sm font-medium mb-2">Confusion Matrix</p>
+          <div className="overflow-x-auto">
           <table className="border border-zinc-200 text-sm">
             <thead>
               <tr>
@@ -46,6 +47,7 @@ export default function MetricsPanel({ metrics }: { metrics: Metrics }) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     );

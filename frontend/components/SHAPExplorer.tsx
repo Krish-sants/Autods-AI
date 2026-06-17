@@ -24,7 +24,7 @@ export default function SHAPExplorer({ shap }: { shap: ShapResults }) {
         <div className="flex flex-col gap-2">
           {shap.global_importance.slice(0, 15).map((f) => (
             <div key={f.feature} className="flex items-center gap-3">
-              <span className="w-40 truncate text-sm text-zinc-600">{f.feature}</span>
+              <span className="w-24 sm:w-40 truncate text-sm text-zinc-600">{f.feature}</span>
               <div className="flex-1 h-3 rounded-full bg-zinc-100">
                 <div
                   className="h-3 rounded-full bg-blue-500"
@@ -39,7 +39,7 @@ export default function SHAPExplorer({ shap }: { shap: ShapResults }) {
 
       {shap.local_examples.length > 0 && example && (
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
             <p className="text-sm font-medium">Individual Prediction Explanation</p>
             <select
               value={selectedIdx}
@@ -56,7 +56,7 @@ export default function SHAPExplorer({ shap }: { shap: ShapResults }) {
           <div className="flex flex-col gap-2">
             {example.contributions.map((c) => (
               <div key={c.feature} className="flex items-center gap-3 text-sm">
-                <span className="w-40 truncate text-zinc-600">{c.feature}</span>
+                <span className="w-24 sm:w-40 truncate text-zinc-600">{c.feature}</span>
                 <div className="flex-1 h-3 rounded-full bg-zinc-100 relative">
                   <div
                     className={`absolute h-3 rounded-full ${c.shap_value >= 0 ? "bg-green-500 left-1/2" : "bg-red-500 right-1/2"}`}

@@ -10,10 +10,12 @@ export default function ReportViewer({ report }: { report: ReportResponse }) {
       >
         {report.executive_summary_source === "llm" ? "AI-written summary" : "Template summary (LLM unavailable for this run)"}
       </span>
-      <div
-        className="prose prose-zinc max-w-none rounded-xl border border-zinc-200 p-6 [&_table]:w-full [&_th]:text-left [&_th]:p-2 [&_td]:p-2 [&_table]:border [&_th]:border [&_td]:border"
-        dangerouslySetInnerHTML={{ __html: report.html }}
-      />
+      <div className="overflow-x-auto rounded-xl border border-zinc-200">
+        <div
+          className="prose prose-zinc max-w-none p-4 sm:p-6 [&_table]:w-full [&_th]:text-left [&_th]:p-2 [&_td]:p-2 [&_table]:border [&_th]:border [&_td]:border"
+          dangerouslySetInnerHTML={{ __html: report.html }}
+        />
+      </div>
     </div>
   );
 }

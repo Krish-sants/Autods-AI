@@ -23,13 +23,13 @@ export default function RunsHistoryPage() {
             <Link
               key={run.run_id}
               href={run.status === "complete" ? `/runs/${run.run_id}/results` : `/runs/${run.run_id}`}
-              className="flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-3 hover:bg-zinc-50"
+              className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 px-4 py-3 hover:bg-zinc-50"
             >
-              <div>
-                <p className="font-medium">{run.filename}</p>
+              <div className="min-w-0">
+                <p className="font-medium truncate">{run.filename}</p>
                 <p className="text-xs text-zinc-500">{new Date(run.created_at).toLocaleString()}</p>
               </div>
-              <span className="text-sm capitalize text-zinc-600">{run.status.replace(/_/g, " ")}</span>
+              <span className="shrink-0 text-sm capitalize text-zinc-600">{run.status.replace(/_/g, " ")}</span>
             </Link>
           ))}
         </div>

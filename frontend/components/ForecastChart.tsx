@@ -27,7 +27,7 @@ export default function ForecastChart({ forecast }: { forecast: ForecastResults 
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <MetricCard label="MAE (hold-out)" value={metrics.mae.toFixed(3)} />
         <MetricCard label="RMSE (hold-out)" value={metrics.rmse.toFixed(3)} />
         <MetricCard label="MAPE (hold-out)" value={`${metrics.mape.toFixed(1)}%`} />

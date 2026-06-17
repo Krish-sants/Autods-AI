@@ -67,7 +67,7 @@ export default function UploadDropzone() {
     <div className="w-full max-w-xl flex flex-col gap-6">
       <div
         {...getRootProps()}
-        className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-12 text-center transition-colors cursor-pointer ${
+        className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-6 sm:p-12 text-center transition-colors cursor-pointer ${
           isDragActive ? "border-blue-500 bg-blue-50" : "border-zinc-300 hover:border-zinc-400"
         }`}
       >

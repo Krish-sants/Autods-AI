@@ -28,7 +28,7 @@ export default function DownloadButtons({ runId }: { runId: string }) {
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
       {ARTIFACTS.map((a) => (
         <button
           key={a.key}

@@ -14,7 +14,7 @@ export default function PlotlyChart({ figure, title }: { figure: PlotlyFigureJSO
         data={figure.data as never}
         layout={{ ...figure.layout, autosize: true, margin: { t: 30, l: 50, r: 20, b: 40 } } as never}
         useResizeHandler
-        style={{ width: "100%", height: "360px" }}
+        style={{ width: "100%", height: "clamp(220px, 50vw, 360px)" }}
         config={{ displayModeBar: false, responsive: true }}
       />
     </div>
