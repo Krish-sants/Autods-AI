@@ -1,0 +1,75 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN}
+    depends_on:
+      - frontend
+    networks:
+      - autods
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    volumes:
+      - autods_data:/app/data
+    env_file:
+      - ./backend/.env
+    environment:
+      - CORS_ORIGINS=["https://${DOMAIN}","http://${DOMAIN}"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - autods
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://${DOMAIN}/api/v1
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - autods
+
+  predictor:
+    build: ./predictor
+    restart: unless-stopped
+    volumes:
+      - autods_data:/app/data:ro
+    environment:
+      - DATA_DIR=/app/data
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - autods
+
+volumes:
+  autods_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  autods:
+    driver: bridge
